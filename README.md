@@ -22,6 +22,7 @@ the app tells you when a newer build is out and installs it itself.
   `android-promote.yml`, a manual dispatch). It carries the same APK as `dev-v1.0.<n>`, not a rebuild.
 - **`android-dev-latest`** / **`android-latest`**: prereleases whose APK is replaced on every publish or
   promote. They exist only for the permanent links above, and are prereleases so they never become Latest.
+  Each carries a `version.txt` naming the build it serves.
 
 Each versioned release carries `SAW-android-1.0.<n>.apk`, `manifest.json` and `manifest.json.minisig`. The
 manifest uses the same schema as saw-agent and saw-desktop: version, channel, commit, min_version, and the APK's
@@ -41,6 +42,13 @@ with the installed app's key.
 
 - **Publishing is CI-only.** The private signing keys (`MOBILE_MINISIGN_ANDROID_DEV_KEY`,
   `MOBILE_MINISIGN_ANDROID_KEY`) live in saw-mobile's Actions secrets.
-- **Yank, never delete.** To pull a build, re-publish its `manifest.json` with `"yanked": true`, signed with the
-  same channel key. agents-api then stops offering it. Deleting a head release would let an older build back in
-  as the head.
+- **Heads only move forward.** A promote refuses a version older than the current `v*` Latest. A permanent
+  `*-latest` link moves only to a newer build than the one it holds, so an older CI run that finishes late
+  leaves it alone. Only a yank moves a link back.
+- **Yank, never delete.** To pull a build, run saw-mobile's **Yank an Android build** workflow
+  (`android-yank.yml`, a manual dispatch with the channel, the version and an optional reason). It re-publishes
+  the build's `manifest.json` with `"yanked": true`, signed with the same channel key, and marks the release
+  **Yanked**. agents-api then stops offering it. If the channel's `*-latest` link served that build, the
+  workflow moves the link back to the newest build on the channel that is not yanked, or removes the link's APK
+  when none is left. Deleting a head release would let an older build back in as the head. To ship past a
+  yanked build, publish or promote a newer one.
